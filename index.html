@@ -1,0 +1,661 @@
+<!-- Passaggio — a break trainer for baritone range (C2–A4). Self-contained prototype. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Passaggio — break trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d16; --panel:#121726; --panel-2:#0e1320;
+    --ink:#e8ebf2; --muted:#8791a8; --line:rgba(255,255,255,.08);
+    --chest:#f4a94b; --head:#46d0e0; --break:#ff5d8f;
+    --chest-dim:rgba(244,169,75,.16); --head-dim:rgba(70,208,224,.16); --break-dim:rgba(255,93,143,.16);
+    --font-disp:'Space Grotesk',system-ui,sans-serif;
+    --font-mono:'Space Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1200px 700px at 85% -10%, rgba(70,208,224,.10), transparent 55%),
+      radial-gradient(900px 600px at 5% 110%, rgba(244,169,75,.09), transparent 55%),
+      var(--bg);
+    color:var(--ink); font-family:var(--font-disp);
+    -webkit-font-smoothing:antialiased; min-height:100dvh;
+    padding:22px clamp(14px,4vw,40px) 60px;
+  }
+  a{color:var(--head)}
+  .wrap{max-width:980px;margin:0 auto}
+
+  header.top{display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .brand h1{
+    font-size:clamp(26px,5vw,40px);font-weight:700;letter-spacing:.14em;margin:0;
+    background:linear-gradient(92deg,var(--chest),var(--break) 52%,var(--head));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  .brand .sub{font-family:var(--font-mono);font-size:12px;color:var(--muted);letter-spacing:.02em}
+  .status{font-family:var(--font-mono);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);box-shadow:0 0 0 0 transparent;transition:.3s}
+  .dot.live{background:var(--head);box-shadow:0 0 12px 2px rgba(70,208,224,.6);animation:pulse 1.6s infinite}
+  @keyframes pulse{50%{opacity:.5}}
+
+  /* hero */
+  .hero{display:grid;grid-template-columns:150px 1fr;gap:clamp(16px,4vw,34px);align-items:stretch}
+  @media(max-width:560px){.hero{grid-template-columns:110px 1fr}}
+
+  /* ladder */
+  .ladder{position:relative;height:min(60vh,460px);border-radius:16px;overflow:hidden;
+    background:linear-gradient(180deg,var(--head-dim),transparent 30%,transparent 70%,var(--chest-dim));
+    border:1px solid var(--line)}
+  .track{position:absolute;left:50%;top:14px;bottom:14px;width:6px;transform:translateX(-50%);border-radius:6px;
+    background:linear-gradient(180deg,var(--head),#6a7bd8 46%,var(--break) 52%,#c98a55 58%,var(--chest));opacity:.5}
+  .band{position:absolute;left:0;right:0;background:var(--break-dim);border-top:1px solid rgba(255,93,143,.4);border-bottom:1px solid rgba(255,93,143,.4)}
+  .band .lbl{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:var(--font-mono);font-size:10px;color:var(--break);letter-spacing:.08em}
+  .reachzone{position:absolute;left:0;right:0;top:0;background:linear-gradient(180deg,rgba(70,208,224,.10),rgba(70,208,224,.02));pointer-events:none}
+  .ceiling{position:absolute;left:0;right:0;transform:translateY(-50%);border-top:1px dashed rgba(232,235,242,.45);pointer-events:none}
+  .ceiling span{position:absolute;right:8px;top:2px;font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.06em}
+  .reachmark{position:absolute;left:0;right:0;transform:translateY(-50%);border-top:2px solid var(--head);opacity:0;transition:top .3s,opacity .3s;pointer-events:none}
+  .reachmark span{position:absolute;left:8px;top:-13px;font-family:var(--font-mono);font-size:9px;color:var(--head);letter-spacing:.06em}
+  .reachmark.on{opacity:.9}
+  .tick{position:absolute;left:0;right:0;display:flex;align-items:center;gap:6px;padding-left:10px;transform:translateY(-50%)}
+  .tick i{width:14px;height:1px;background:var(--line)}
+  .tick b{font-family:var(--font-mono);font-size:10px;font-weight:400;color:var(--muted)}
+  .tick.strong b{color:var(--ink)}
+  .pitchdot{position:absolute;left:50%;width:20px;height:20px;border-radius:50%;transform:translate(-50%,-50%) scale(.4);
+    background:var(--head);box-shadow:0 0 18px 4px rgba(70,208,224,.7);opacity:0;transition:top .06s linear,background .12s,opacity .18s,transform .12s}
+  .pitchdot.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .target{position:absolute;left:50%;width:32px;height:32px;border-radius:50%;transform:translate(-50%,-50%);
+    border:2px dashed rgba(255,255,255,.35);opacity:0;transition:top .25s,opacity .25s}
+  .target.on{opacity:1}
+  .target.hit{border-color:var(--head);border-style:solid;box-shadow:0 0 14px 2px rgba(70,208,224,.5)}
+
+  /* readout */
+  .readout{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:16px;
+    padding:clamp(16px,3.5vw,28px);display:flex;flex-direction:column;justify-content:center;gap:12px}
+  .note{font-family:var(--font-mono);font-weight:700;line-height:.9;font-size:clamp(56px,16vw,120px);letter-spacing:-.02em}
+  .note small{font-size:.42em;vertical-align:super;color:var(--muted);font-weight:400;margin-left:.06em}
+  .note.chest{color:var(--chest)} .note.head{color:var(--head)} .note.brk{color:var(--break)} .note.idle{color:var(--muted)}
+  .metrics{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--font-mono);font-size:13px}
+  .metrics .k{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+  .metrics .v{font-size:20px}
+  .cents{display:flex;align-items:center;gap:8px}
+  .centsbar{position:relative;width:120px;height:6px;background:rgba(255,255,255,.08);border-radius:6px}
+  .centsbar i{position:absolute;top:-3px;left:50%;width:2px;height:12px;background:var(--muted)}
+  .centsbar em{position:absolute;top:0;height:6px;width:6px;border-radius:50%;background:var(--head);left:50%;transform:translateX(-50%);transition:left .08s,background .12s}
+  .conf{height:5px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden}
+  .conf i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--chest),var(--head));transition:width .12s}
+  .regtag{font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+  .btn{font-family:var(--font-disp);font-weight:500;font-size:15px;border:0;border-radius:11px;padding:13px 20px;cursor:pointer;
+    background:var(--head);color:#04222a;transition:.15s;letter-spacing:.01em}
+  .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--head);color:var(--head)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+  .btn.sm{padding:9px 14px;font-size:13px}
+
+  /* tabs + panels */
+  .tabs{display:flex;gap:6px;margin:26px 0 16px;flex-wrap:wrap}
+  .tab{font-family:var(--font-mono);font-size:13px;letter-spacing:.04em;padding:10px 16px;border-radius:10px;border:1px solid var(--line);
+    background:transparent;color:var(--muted);cursor:pointer}
+  .tab.active{color:var(--ink);border-color:transparent;background:var(--panel)}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:16px;padding:clamp(16px,3vw,26px)}
+  .panel h2{font-size:15px;font-weight:500;margin:0 0 4px;letter-spacing:.02em}
+  .panel p.hint{color:var(--muted);font-size:13.5px;line-height:1.55;margin:0 0 18px;max-width:60ch}
+  .hidden{display:none!important}
+
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  select,input[type=range]{accent-color:var(--head)}
+  select{font-family:var(--font-mono);font-size:14px;background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+  input[type=range]{width:150px}
+  .val{font-family:var(--font-mono);font-size:13px;color:var(--muted);min-width:52px}
+
+  .drillcard{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px}
+  .stat{flex:1;min-width:130px;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .stat .k{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .stat .v{font-family:var(--font-mono);font-size:26px;margin-top:4px}
+  .stat .v.chest{color:var(--chest)} .stat .v.head{color:var(--head)}
+
+  /* break power */
+  .powerbars{display:flex;gap:16px;align-items:flex-end;margin:22px 0 6px;height:220px}
+  .pbar{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%}
+  .pbar .col{position:relative;flex:1;width:100%;max-width:88px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .pbar .col i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(180deg,var(--head),#3a8fb0);transition:height .18s ease-out}
+  .pbar.break .col i{background:linear-gradient(180deg,var(--break),#b53e68)}
+  .pbar b{font-family:var(--font-mono);font-size:14px;color:var(--ink)}
+  .pbar.break b{color:var(--break)}
+  .pbar .db{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+  .pbar .col i.target-line::after{content:''}
+  .live-row{display:flex;align-items:center;gap:12px;margin-top:10px}
+  .live-row .k{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  .livemeter{flex:1;height:8px;border-radius:8px;background:rgba(255,255,255,.06);overflow:hidden}
+  .livemeter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--chest),var(--head));transition:width .08s}
+  .nownote{font-family:var(--font-mono);font-size:15px;min-width:56px;text-align:right}
+  .dipmsg{font-family:var(--font-mono);font-size:13px;line-height:1.5;color:var(--muted);margin:14px 0 0}
+  .dipmsg.good{color:var(--head)} .dipmsg.dip{color:var(--break)}
+
+  /* routine */
+  .phases{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .phase{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:var(--panel-2);transition:.2s}
+  .phase.active{border-color:var(--head);background:rgba(70,208,224,.06)}
+  .phase.done{opacity:.5}
+  .phase .num{font-family:var(--font-mono);font-size:12px;color:var(--muted);width:22px}
+  .phase .nm{flex:1;font-size:14.5px}
+  .phase .nm small{display:block;color:var(--muted);font-size:12px;margin-top:2px;font-family:var(--font-mono)}
+  .phase .dur{font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+  .phase.active .dur{color:var(--head)}
+  .rtimer{font-family:var(--font-mono);font-size:clamp(40px,10vw,64px);font-weight:700;letter-spacing:.02em;line-height:1}
+  .rtimer small{font-size:.34em;color:var(--muted);font-weight:400;letter-spacing:.08em}
+
+  .warn{font-family:var(--font-mono);font-size:12px;color:var(--break);background:var(--break-dim);border:1px solid rgba(255,93,143,.3);
+    border-radius:10px;padding:11px 14px;margin-top:18px;line-height:1.5}
+  footer{margin-top:30px;color:var(--muted);font-family:var(--font-mono);font-size:11.5px;line-height:1.6}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>PASSAGGIO</h1>
+      <span class="sub">break trainer · C2–A4</span>
+    </div>
+    <div class="status"><span class="dot" id="micDot"></span><span id="micStatus">mic off</span></div>
+  </header>
+
+  <section class="hero">
+    <div class="ladder" id="ladder">
+      <div class="reachzone" id="reachzone"></div>
+      <div class="track"></div>
+      <div class="band" id="band"><span class="lbl">BREAK</span></div>
+      <div class="ceiling" id="ceiling"><span>ceiling</span></div>
+      <div class="reachmark" id="reachmark"><span>reach</span></div>
+      <div class="target" id="target"></div>
+      <div class="pitchdot" id="pitchdot"></div>
+    </div>
+
+    <div class="readout">
+      <div class="regtag" id="regtag">— press start —</div>
+      <div class="note idle" id="noteMain">··<small></small></div>
+      <div class="metrics">
+        <div><div class="k">frequency</div><div class="v" id="hz">—</div></div>
+        <div>
+          <div class="k">cents</div>
+          <div class="v cents"><div class="centsbar"><i></i><em id="centsDot"></em></div><span id="centsVal" style="font-size:13px;color:var(--muted)">—</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="k" style="font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;margin-bottom:5px">signal confidence</div>
+        <div class="conf"><i id="confBar"></i></div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn" id="micBtn">Start mic</button>
+        <span class="val" id="lowSignal" style="color:var(--break);display:none">too quiet — sing a steady “ah”</span>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="practice">Free practice</button>
+    <button class="tab" data-tab="drills">Drills</button>
+    <button class="tab" data-tab="routine">15-min routine</button>
+    <button class="tab" data-tab="power">Break power</button>
+  </nav>
+
+  <!-- PRACTICE -->
+  <section class="panel" id="tab-practice">
+    <h2>Free practice</h2>
+    <p class="hint">Just you and the ladder. Sing a slow siren from your low range up through the rose <b>break band</b> and back down. Watch whether the dot stays bright and steady as it crosses E4 — a drop-out or colour flip is your voice flipping to falsetto instead of carrying a connected mix. The frequency readout shows octave glitches too: if it jumps but your pitch didn’t, the number lied, not you.</p>
+    <div class="drillcard">
+      <div class="stat"><div class="k">Highest clean note</div><div class="v head" id="pHigh">—</div></div>
+      <div class="stat"><div class="k">Lowest clean note</div><div class="v chest" id="pLow">—</div></div>
+      <div class="stat"><div class="k">Break crossings</div><div class="v" id="pCross">0</div></div>
+    </div>
+    <div class="warn">Stop the moment you feel tension in your throat, jaw, or neck. The top notes come from ease, not force — straining builds the wrong habit and risks damage.</div>
+  </section>
+
+  <!-- DRILLS -->
+  <section class="panel hidden" id="tab-drills">
+    <h2>Guided drills</h2>
+    <p class="hint">Pick a drill and a starting root. The reference notes play on a soft tone and light up on the ladder as dashed targets — match them with your voice. Match a target and it locks bright. Nudge the root up a semitone at a time; stop climbing when A4 becomes your ceiling.</p>
+    <div class="row" style="gap:18px">
+      <div class="field">
+        <label>Drill</label>
+        <select id="drillSel"></select>
+      </div>
+      <div class="field">
+        <label>Root</label>
+        <select id="rootSel"></select>
+      </div>
+      <div class="field">
+        <label>Tempo <span id="bpmVal" class="val">72 bpm</span></label>
+        <input type="range" id="bpm" min="48" max="120" value="72">
+      </div>
+    </div>
+    <p class="hint" id="drillDesc" style="margin:16px 0 0"></p>
+    <div class="row" style="margin-top:16px">
+      <button class="btn" id="playDrill">Play pattern</button>
+      <button class="btn ghost sm" id="rootDown">Root −1</button>
+      <button class="btn ghost sm" id="rootUp">Root +1</button>
+    </div>
+    <div class="warn">If a target sits above A4, skip it — don’t reach past your current ceiling to hit a reference note.</div>
+  </section>
+
+  <!-- ROUTINE -->
+  <section class="panel hidden" id="tab-routine">
+    <h2>The 15-minute routine</h2>
+    <p class="hint">Your daily flow, timed and in order — gentle warm-up first, break work in the middle, cool-down to finish. Each phase loads its drill automatically. Keep the mic on so your crossings still register.</p>
+    <div class="row" style="align-items:flex-end;gap:24px;margin-bottom:18px">
+      <div class="rtimer" id="rtimer">15:00<small> total</small></div>
+      <div class="row">
+        <button class="btn" id="routineBtn">Start routine</button>
+        <button class="btn ghost sm" id="routineSkip" disabled>Skip phase</button>
+      </div>
+    </div>
+    <div class="phases" id="phaseList"></div>
+    <div class="warn">Consistency beats intensity. Daily 15 minutes moves your break far more than an occasional long grind — and always stop if you feel strain.</div>
+  </section>
+
+  <!-- BREAK POWER -->
+  <section class="panel hidden" id="tab-power">
+    <h2>Break power balancer</h2>
+    <p class="hint">Your voice stays connected through E4 but goes quiet right in the break, then firms up above it. This camps on the three notes either side of that dip. Sustain each one; the bars show how much power you carried. The aim isn't loud — it's <b>level</b>: get E4 up to match D#4 and F4 so the dip fills in. Play the reference to guide your pitch.</p>
+    <div class="row" style="margin-bottom:4px">
+      <button class="btn" id="powerRef">Play D#4 · E4 · F4</button>
+      <button class="btn ghost sm" id="powerLoop">Loop: off</button>
+      <button class="btn ghost sm" id="powerReset">Reset bars</button>
+    </div>
+    <div class="powerbars" id="powerBars">
+      <div class="pbar" data-midi="63"><div class="col"><i></i></div><b>D#4</b><span class="db">—</span></div>
+      <div class="pbar break" data-midi="64"><div class="col"><i></i></div><b>E4</b><span class="db">—</span></div>
+      <div class="pbar" data-midi="65"><div class="col"><i></i></div><b>F4</b><span class="db">—</span></div>
+    </div>
+    <div class="live-row">
+      <span class="k">live level</span>
+      <div class="livemeter"><i id="liveLevel"></i></div>
+      <span class="nownote" id="powerNow">—</span>
+    </div>
+    <p class="dipmsg" id="dipMsg">Sing a sustained D#4, then E4, then F4 — hold each a couple of seconds so it registers.</p>
+    <div class="warn">Fill the dip by keeping the breath flowing and the tone forward — not by pushing or squeezing. If your throat tightens to make E4 louder, back off; that's the wrong kind of power.</div>
+  </section>
+
+
+  <footer id="foot">
+    Session-only prototype — progress resets when you close the tab. Best with headphones so the reference tone doesn’t bleed into the mic. Pitch detection favours a clear, sustained “ah”; whispers, fry, and background noise read as low confidence on purpose.
+  </footer>
+</div>
+
+<script>
+/* ---------- note math ---------- */
+const A4=440, NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const MIDI_LOW=36 /*C2*/, MIDI_HIGH=69 /*A4*/;      // his labelled singing range / ceiling
+const LAD_LOW=36 /*C2*/, LAD_HIGH=84 /*C6*/;        // visible ladder span (extends above the ceiling)
+const CEILING=69 /*A4*/;                             // current-ceiling marker
+const BREAK_LO=62 /*D4*/, BREAK_HI=66 /*F#4*/, BREAK_MID=64 /*E4*/;
+const freqToMidi=f=>69+12*Math.log2(f/A4);
+const midiToFreq=m=>A4*Math.pow(2,(m-69)/12);
+function midiName(m){const r=Math.round(m);return{name:NOTE_NAMES[((r%12)+12)%12],oct:Math.floor(r/12)-1};}
+function fullName(m){const n=midiName(m);return n.name+n.oct;}
+function regionOf(m){ if(m<BREAK_LO)return'chest'; if(m>BREAK_HI)return'head'; return'brk'; }
+
+/* ---------- ladder scaffolding ---------- */
+const ladder=document.getElementById('ladder'), band=document.getElementById('band'),
+      pitchdot=document.getElementById('pitchdot'), targetEl=document.getElementById('target');
+const PAD=14; // px padding top/bottom matching .track
+function yFor(midi){ // midi -> px from top
+  const h=ladder.clientHeight-PAD*2;
+  const t=(midi-LAD_LOW)/(LAD_HIGH-LAD_LOW);
+  return PAD + (1-Math.max(0,Math.min(1,t)))*h;
+}
+function buildTicks(){
+  [...ladder.querySelectorAll('.tick')].forEach(e=>e.remove());
+  const marks=[[36,'C2',1],[48,'C3',1],[60,'C4',1],[BREAK_LO,'D4',0],[BREAK_MID,'E4',0],[BREAK_HI,'F#4',0],
+               [69,'A4',1],[72,'C5',1],[79,'G5',0],[84,'C6',1]];
+  marks.forEach(([m,lab,strong])=>{
+    const d=document.createElement('div'); d.className='tick'+(strong?' strong':'');
+    d.style.top=yFor(m)+'px'; d.innerHTML='<i></i><b>'+lab+'</b>'; ladder.appendChild(d);
+  });
+  band.style.top=yFor(BREAK_HI)+'px';
+  band.style.height=(yFor(BREAK_LO)-yFor(BREAK_HI))+'px';
+  // ceiling line at A4 and the aspirational "reach zone" above it
+  document.getElementById('ceiling').style.top=yFor(CEILING)+'px';
+  const rz=document.getElementById('reachzone'); rz.style.top=PAD+'px'; rz.style.height=(yFor(CEILING)-PAD)+'px';
+}
+buildTicks(); addEventListener('resize',buildTicks);
+
+/* ---------- audio + pitch detection ---------- */
+let ctx, analyser, micStream, buf, running=false, master;
+const HISTORY=[]; // recent accepted midi values for smoothing
+const micBtn=document.getElementById('micBtn'), micDot=document.getElementById('micDot'), micStatus=document.getElementById('micStatus');
+
+function micProblem(msg){ micStatus.textContent='mic unavailable'; micDot.classList.remove('live'); alert(msg); }
+async function startMic(){
+  // Distinguish the common failure modes so the message is actually useful.
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    const sandboxed = window.self!==window.top;
+    return micProblem(
+      sandboxed
+        ? 'The mic is unavailable because this is running inside an embedded preview, which browsers block from using the microphone.\n\nDownload passaggio.html and open it in its own browser tab (double-click the file), then it will ask for mic permission normally.'
+        : 'This browser isn’t exposing microphone access. It usually means the page is on http:// instead of https:// or file://. Open it over https or as a local file.'
+    );
+  }
+  try{
+    ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
+    master=master||(()=>{const g=ctx.createGain();g.gain.value=.35;g.connect(ctx.destination);return g;})();
+    await ctx.resume();
+    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    const src=ctx.createMediaStreamSource(micStream);
+    analyser=ctx.createAnalyser(); analyser.fftSize=4096; buf=new Float32Array(analyser.fftSize);
+    src.connect(analyser);
+    running=true; micDot.classList.add('live'); micStatus.textContent='listening'; micBtn.textContent='Stop mic';
+    loop();
+  }catch(e){
+    const name=e&&e.name?e.name:'Error';
+    let msg;
+    if(name==='NotAllowedError'||name==='SecurityError')
+      msg = (window.self!==window.top)
+        ? 'Permission was denied — almost always because this is an embedded preview. Download the file and open it in its own browser tab, then allow the mic.'
+        : 'You (or the browser) denied mic access. Click the camera/mic icon in the address bar, set the mic to Allow, and reload.';
+    else if(name==='NotFoundError'||name==='OverconstrainedError')
+      msg = 'No microphone was found. Check that a mic is connected and not disabled.';
+    else if(name==='NotReadableError')
+      msg = 'The mic is in use by another app. Close anything else using it (video call, voice memo) and try again.';
+    else
+      msg = 'Couldn’t start the mic — '+name+': '+(e&&e.message||'')+'';
+    micProblem(msg);
+  }
+}
+function stopMic(){
+  running=false; micDot.classList.remove('live'); micStatus.textContent='mic off'; micBtn.textContent='Start mic';
+  pitchdot.classList.remove('on'); if(micStream) micStream.getTracks().forEach(t=>t.stop());
+  setNote(null);
+}
+micBtn.onclick=()=>running?stopMic():startMic();
+
+/* McLeod Pitch Method — picks the FIRST strong periodicity peak (the fundamental),
+   which is what kills octave errors at the source instead of patching them after. */
+const DET_MIN=55, DET_MAX=1100, CLARITY_GATE=0.55;
+function detectPitch(b,sr){
+  const N=b.length;
+  let mean=0; for(let i=0;i<N;i++) mean+=b[i]; mean/=N;
+  let rms=0; for(let i=0;i<N;i++){ b[i]-=mean; rms+=b[i]*b[i]; } rms=Math.sqrt(rms/N);
+  if(rms<0.008) return {f:-1,clarity:0,rms};
+  const minLag=Math.floor(sr/DET_MAX), maxLag=Math.min(N-2,Math.floor(sr/DET_MIN));
+  const S=new Float32Array(N+1); for(let i=0;i<N;i++) S[i+1]=S[i]+b[i]*b[i];
+  const total=S[N], nsdf=new Float32Array(maxLag+2);
+  for(let tau=0;tau<=maxLag+1;tau++){
+    let r=0; for(let j=0;j<N-tau;j++) r+=b[j]*b[j+tau];
+    const m=S[N-tau]+total-S[tau];
+    nsdf[tau]= m>0 ? 2*r/m : 0;
+  }
+  // key maxima between positive-going zero crossings
+  const peaks=[]; let i=Math.max(1,minLag);
+  while(i<maxLag){
+    if(nsdf[i-1]<0 && nsdf[i]>=0){
+      let best=i;
+      while(i<maxLag && !(nsdf[i]>=0 && nsdf[i+1]<0)){ if(nsdf[i]>nsdf[best]) best=i; i++; }
+      peaks.push(best);
+    }
+    i++;
+  }
+  if(!peaks.length) return {f:-1,clarity:0,rms};
+  let maxv=0; for(const p of peaks) if(nsdf[p]>maxv) maxv=nsdf[p];
+  const thresh=0.8*maxv; let chosen=peaks[0];
+  for(const p of peaks){ if(nsdf[p]>=thresh){ chosen=p; break; } }
+  const a=nsdf[chosen-1]||0, bb=nsdf[chosen], c=nsdf[chosen+1]||0, dd=a+c-2*bb;
+  const shift= dd!==0 ? 0.5*(a-c)/dd : 0;
+  return {f: sr/(chosen+shift), clarity: bb, rms};
+}
+
+function loop(){
+  if(!running) return;
+  analyser.getFloatTimeDomainData(buf);
+  const {f,clarity,rms}=detectPitch(buf,ctx.sampleRate);
+  const lowSig=document.getElementById('lowSignal'); lowSig.style.display=(rms<0.008)?'inline':'none';
+  document.getElementById('confBar').style.width=Math.min(100,clarity*100)+'%';
+
+  if(f>0 && clarity>CLARITY_GATE && f>=DET_MIN && f<=DET_MAX){
+    let midi=freqToMidi(f);
+    // light median smoothing to reject the occasional stray frame
+    HISTORY.push(midi); if(HISTORY.length>5) HISTORY.shift();
+    const sorted=[...HISTORY].sort((a,b)=>a-b), med=sorted[Math.floor(sorted.length/2)];
+    if(Math.abs(midi-med)>7 && HISTORY.length>=4) midi=med;
+    setNote(midi, f, clarity);
+    trackStats(midi);
+    trackPower(midi, rms, clarity);
+    requestAnimationFrame(loop); return;
+  }
+  // no confident pitch
+  HISTORY.length=0; setNote(null); trackPower(null,0,0);
+  requestAnimationFrame(loop);
+}
+
+const noteMain=document.getElementById('noteMain'), hzEl=document.getElementById('hz'),
+      centsDot=document.getElementById('centsDot'), centsVal=document.getElementById('centsVal'),
+      regtag=document.getElementById('regtag');
+function setNote(midi, hz, clarity){
+  if(midi==null){
+    noteMain.className='note idle'; noteMain.innerHTML='··<small></small>';
+    hzEl.textContent='—'; centsVal.textContent='—'; centsDot.style.left='50%';
+    regtag.textContent = running?'listening…':'— press start —'; pitchdot.classList.remove('on');
+    checkTargetHit(null); return;
+  }
+  const r=Math.round(midi), nm=midiName(r), cents=Math.round((midi-r)*100), reg=regionOf(midi);
+  noteMain.className='note '+reg;
+  noteMain.innerHTML=nm.name+'<small>'+nm.oct+'</small>';
+  hzEl.textContent=hz.toFixed(1)+' Hz';
+  centsVal.textContent=(cents>0?'+':'')+cents+'¢';
+  centsDot.style.left=(50+Math.max(-50,Math.min(50,cents))/1)+'%';
+  centsDot.style.background = Math.abs(cents)<12?'var(--head)':'var(--muted)';
+  regtag.textContent = midi>LAD_HIGH ? 'above the ladder ↑'
+                     : midi>CEILING+0.5 ? 'above your ceiling ↑ · extending'
+                     : reg==='chest'?'chest voice':reg==='head'?'head / mix':'★ in the break';
+  pitchdot.classList.add('on');
+  pitchdot.style.top=yFor(midi)+'px';
+  pitchdot.style.background = reg==='chest'?'var(--chest)':reg==='head'?'var(--head)':'var(--break)';
+  pitchdot.style.boxShadow = '0 0 18px 4px '+(reg==='chest'?'rgba(244,169,75,.6)':reg==='head'?'rgba(70,208,224,.7)':'rgba(255,93,143,.7)');
+  checkTargetHit(r);
+}
+
+/* ---------- session stats ---------- */
+let hiMidi=null, loMidi=null, crossings=0, lastRegion=null, cleanFrames=0, lastCleanMidi=null;
+function trackStats(midi){
+  // "clean" = held with confidence for a few frames
+  if(lastCleanMidi!=null && Math.abs(midi-lastCleanMidi)<1.5) cleanFrames++; else cleanFrames=0;
+  lastCleanMidi=midi;
+  if(cleanFrames>8){
+    const r=Math.round(midi);
+    if(hiMidi==null||r>hiMidi){hiMidi=r; document.getElementById('pHigh').textContent=fullName(r);
+      const rm=document.getElementById('reachmark'); rm.style.top=yFor(r)+'px'; rm.classList.add('on');
+      rm.querySelector('span').textContent='reach · '+fullName(r);}
+    if(loMidi==null||r<loMidi){loMidi=r; document.getElementById('pLow').textContent=fullName(r);}
+  }
+  const reg=regionOf(midi);
+  if(lastRegion && lastRegion!=='brk' && reg!==lastRegion && (reg==='brk'|| (lastRegion==='chest'&&reg==='head')||(lastRegion==='head'&&reg==='chest'))){
+    if((lastRegion==='chest'&&reg!=='chest')||(lastRegion==='head'&&reg!=='head')){ crossings++; document.getElementById('pCross').textContent=crossings; }
+  }
+  lastRegion=reg;
+}
+
+/* ---------- reference-tone synth ---------- */
+function playTone(freq,when,dur){
+  const o=ctx.createOscillator(), o2=ctx.createOscillator(), g=ctx.createGain();
+  o.type='triangle'; o2.type='sine'; o.frequency.value=freq; o2.frequency.value=freq*2;
+  const g2=ctx.createGain(); g2.gain.value=.25; o2.connect(g2).connect(g);
+  o.connect(g); g.connect(master);
+  g.gain.setValueAtTime(0,when);
+  g.gain.linearRampToValueAtTime(.5,when+.02);
+  g.gain.exponentialRampToValueAtTime(.0005,when+dur);
+  o.start(when);o2.start(when);o.stop(when+dur+.05);o2.stop(when+dur+.05);
+}
+
+/* ---------- drills ---------- */
+const DRILLS={
+  lip:{name:'Lip-trill slide',offsets:[0,7,0],desc:'Loose lip trill (add an “uh” behind it). Easy slide up a fifth and back — wakes the cords without pushing. Start low.'},
+  siren:{name:'Siren through the break',offsets:[0,4,7,12,7,4,0],desc:'The key drill for you: glide slowly across E4 into head voice and back on one breath. Go slow through the rose band until the flip smooths out.'},
+  nay:{name:'“Nay” 1-3-5-8',offsets:[0,4,7,12,7,4,0],desc:'Bratty, nasal “nay” on root–third–fifth–octave. The nasal edge keeps you from cracking as you pass E4.'},
+  gee:{name:'“Gee” octave-and-a-half',offsets:[0,2,4,5,7,9,11,12,14,16,17,19,17,16,14,12,11,9,7,5,4,2,0],desc:'Firm “gee” up an octave and a half and down. Builds connected power on the top notes.'},
+};
+const drillSel=document.getElementById('drillSel'), rootSel=document.getElementById('rootSel'),
+      drillDesc=document.getElementById('drillDesc'), bpm=document.getElementById('bpm'), bpmVal=document.getElementById('bpmVal');
+Object.entries(DRILLS).forEach(([k,d])=>{const o=document.createElement('option');o.value=k;o.textContent=d.name;drillSel.appendChild(o);});
+for(let m=MIDI_LOW;m<=MIDI_HIGH;m++){const o=document.createElement('option');o.value=m;o.textContent=fullName(m);if(m===48)o.selected=true;rootSel.appendChild(o);}
+function refreshDrill(){ drillDesc.textContent=DRILLS[drillSel.value].desc; }
+drillSel.onchange=refreshDrill; refreshDrill();
+bpm.oninput=()=>bpmVal.textContent=bpm.value+' bpm';
+
+let drillTimers=[], currentTargets=[], targetIdx=-1;
+function stopDrill(){ drillTimers.forEach(clearTimeout); drillTimers=[]; currentTargets=[]; targetIdx=-1; targetEl.classList.remove('on','hit'); }
+function playDrill(drillKey, root){
+  if(!ctx){ alert('Start the mic first — it also powers the reference tone.'); return; }
+  stopDrill();
+  const d=DRILLS[drillKey], beat=60/(+bpm.value), t0=ctx.currentTime+.15;
+  currentTargets=d.offsets.map(o=>root+o);
+  d.offsets.forEach((off,i)=>{
+    const midi=root+off; if(midi>MIDI_HIGH+2) return; // don't push above ceiling
+    playTone(midiToFreq(midi), t0+i*beat, beat*0.9);
+    const id=setTimeout(()=>{ targetIdx=i; showTarget(midi); }, (t0+i*beat-ctx.currentTime)*1000);
+    drillTimers.push(id);
+  });
+  const endId=setTimeout(()=>{ targetEl.classList.remove('on','hit'); targetIdx=-1; }, (t0+d.offsets.length*beat-ctx.currentTime)*1000+400);
+  drillTimers.push(endId);
+}
+function showTarget(midi){ targetEl.style.top=yFor(midi)+'px'; targetEl.classList.add('on'); targetEl.classList.remove('hit'); targetEl.dataset.midi=midi; }
+function checkTargetHit(r){
+  if(r==null||!targetEl.classList.contains('on')){ return; }
+  if(Math.abs(r-(+targetEl.dataset.midi))<0.6) targetEl.classList.add('hit');
+}
+document.getElementById('playDrill').onclick=()=>playDrill(drillSel.value,+rootSel.value);
+document.getElementById('rootUp').onclick=()=>{ if(+rootSel.value<MIDI_HIGH){rootSel.value=+rootSel.value+1;} };
+document.getElementById('rootDown').onclick=()=>{ if(+rootSel.value>MIDI_LOW){rootSel.value=+rootSel.value-1;} };
+
+/* ---------- 15-minute routine ---------- */
+const PHASES=[
+  {nm:'Gentle warm-up',sub:'lip trills + hums, easy slides',min:3,drill:'lip',root:48},
+  {nm:'Sirens through the break',sub:'slow glides across E4',min:4,drill:'siren',root:48},
+  {nm:'Break-crossing drills',sub:'“nay” then “gee”',min:5,drill:'nay',root:48},
+  {nm:'Cool-down',sub:'gentle trills, descending',min:3,drill:'lip',root:48},
+];
+const phaseList=document.getElementById('phaseList'), rtimer=document.getElementById('rtimer'),
+      routineBtn=document.getElementById('routineBtn'), routineSkip=document.getElementById('routineSkip');
+function renderPhases(active=-1,done=-1){
+  phaseList.innerHTML='';
+  PHASES.forEach((p,i)=>{
+    const el=document.createElement('div');
+    el.className='phase'+(i===active?' active':'')+(i<=done?' done':'');
+    el.innerHTML=`<span class="num">${String(i+1).padStart(2,'0')}</span>
+      <span class="nm">${p.nm}<small>${p.sub}</small></span><span class="dur">${p.min}:00</span>`;
+    phaseList.appendChild(el);
+  });
+}
+renderPhases();
+let routineOn=false, phaseIdx=0, phaseRemain=0, routineTick=null;
+function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function startRoutine(){
+  if(!ctx){ alert('Start the mic first so your crossings register during the routine.'); return; }
+  routineOn=true; phaseIdx=0; routineBtn.textContent='Stop routine'; routineSkip.disabled=false;
+  enterPhase(0);
+  routineTick=setInterval(()=>{
+    phaseRemain--;
+    rtimer.innerHTML=fmt(phaseRemain)+'<small> '+PHASES[phaseIdx].nm+'</small>';
+    if(phaseRemain<=0) nextPhase();
+  },1000);
+}
+function enterPhase(i){
+  phaseIdx=i; phaseRemain=PHASES[i].min*60;
+  renderPhases(i,i-1);
+  rtimer.innerHTML=fmt(phaseRemain)+'<small> '+PHASES[i].nm+'</small>';
+  drillSel.value=PHASES[i].drill; refreshDrill(); rootSel.value=PHASES[i].root;
+  playDrill(PHASES[i].drill,PHASES[i].root);
+}
+function nextPhase(){
+  if(phaseIdx<PHASES.length-1){ enterPhase(phaseIdx+1); }
+  else finishRoutine(true);
+}
+function finishRoutine(complete){
+  routineOn=false; clearInterval(routineTick); stopDrill();
+  renderPhases(-1, complete?PHASES.length-1:phaseIdx-1);
+  rtimer.innerHTML=(complete?'done ✓':'15:00')+'<small> '+(complete?'nice work':'total')+'</small>';
+  routineBtn.textContent='Start routine'; routineSkip.disabled=true;
+}
+routineBtn.onclick=()=>routineOn?finishRoutine(false):startRoutine();
+routineSkip.onclick=()=>{ if(routineOn) nextPhase(); };
+
+/* ---------- break power balancer ---------- */
+// dB range mapped to bar height
+const DB_FLOOR=-42, DB_CEIL=-8;
+const POWER={63:{ema:null,n:0}, 64:{ema:null,n:0}, 65:{ema:null,n:0}};
+const NOTE_OF={63:'D#4',64:'E4',65:'F4'};
+function dbFromRms(rms){ return 20*Math.log10(Math.max(rms,1e-6)); }
+function dbToPct(db){ return Math.max(0,Math.min(100,(db-DB_FLOOR)/(DB_CEIL-DB_FLOOR)*100)); }
+const liveLevel=document.getElementById('liveLevel'), powerNow=document.getElementById('powerNow'), dipMsg=document.getElementById('dipMsg');
+function trackPower(midi,rms,clarity){
+  // live meter always reflects current loudness
+  if(liveLevel){
+    const pct = (midi!=null && clarity>0.6) ? dbToPct(dbFromRms(rms)) : 0;
+    liveLevel.style.width=pct+'%';
+    powerNow.textContent = midi!=null ? fullName(Math.round(midi)) : '—';
+  }
+  if(midi==null || clarity<0.75) return;
+  const r=Math.round(midi);
+  if(!(r in POWER)) return;
+  const db=dbFromRms(rms);
+  if(db<DB_FLOOR) return;                       // ignore near-silence
+  const p=POWER[r];
+  p.ema = p.ema==null ? db : p.ema*0.85+db*0.15; // settle on sustained level
+  p.n++;
+  renderPower();
+}
+function renderPower(){
+  document.querySelectorAll('#powerBars .pbar').forEach(el=>{
+    const r=+el.dataset.midi, p=POWER[r];
+    const bar=el.querySelector('i'), lbl=el.querySelector('.db');
+    if(p.ema==null){ bar.style.height='0'; lbl.textContent='—'; }
+    else{ bar.style.height=dbToPct(p.ema)+'%'; lbl.textContent=p.ema.toFixed(0)+' dB'; }
+  });
+  updateDip();
+}
+function updateDip(){
+  const e=POWER[64].ema, d=POWER[63].ema, f=POWER[65].ema;
+  if(e==null || d==null || f==null){
+    dipMsg.className='dipmsg';
+    dipMsg.textContent='Sing a sustained D#4, then E4, then F4 — hold each a couple of seconds so it registers.';
+    return;
+  }
+  const flank=(d+f)/2, gap=flank-e;   // positive gap = E4 is weaker (the dip)
+  if(gap>=2.5){
+    dipMsg.className='dipmsg dip';
+    dipMsg.textContent='E4 is '+gap.toFixed(1)+' dB below its neighbours — that\u2019s the dip. Keep the breath flowing and aim to carry the same fullness across it.';
+  }else if(gap>=1){
+    dipMsg.className='dipmsg';
+    dipMsg.textContent='Closing in — E4 is '+gap.toFixed(1)+' dB under the flanks. Nearly level.';
+  }else{
+    dipMsg.className='dipmsg good';
+    dipMsg.textContent='Level \u2713 E4 is within '+Math.abs(gap).toFixed(1)+' dB of its neighbours. That\u2019s a connected, even break.';
+  }
+}
+document.getElementById('powerReset').onclick=()=>{ for(const k in POWER){POWER[k].ema=null;POWER[k].n=0;} renderPower(); };
+// reference tones for the three break notes
+let powerLoopOn=false, powerLoopTimer=null;
+function playBreakRef(){
+  if(!ctx){ alert('Start the mic first — it also powers the reference tone.'); return; }
+  const t0=ctx.currentTime+.1, step=0.75;
+  [63,64,65].forEach((m,i)=> playTone(midiToFreq(m), t0+i*step, step*0.9));
+}
+document.getElementById('powerRef').onclick=playBreakRef;
+document.getElementById('powerLoop').onclick=(e)=>{
+  powerLoopOn=!powerLoopOn; e.target.textContent='Loop: '+(powerLoopOn?'on':'off');
+  e.target.classList.toggle('ghost',!powerLoopOn);
+  if(powerLoopOn){ playBreakRef(); powerLoopTimer=setInterval(()=>{ if(powerLoopOn) playBreakRef(); },2600); }
+  else clearInterval(powerLoopTimer);
+};
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  ['practice','drills','routine','power'].forEach(id=>document.getElementById('tab-'+id).classList.toggle('hidden',id!==t.dataset.tab));
+});
+</script>
